@@ -1,0 +1,81 @@
+version: '1'
+services:
+  webserver:
+    image: nginx:alpine
+    container_name: sms-auth-webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8000:80"
+      - "443:443"
+    volumes:
+      - ./backend:/var/www/html/
+      - ./docker-compose/nginx:/etc/nginx/conf.d
+    networks:
+      - appsmsauth
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    tty: true
+    environment:
+      DB_HOST: db
+      DB_DATABASE: smsauth
+      DB_USERNAME: root
+      DB_PASSWORD: password
+
+    working_dir: /var/www/html/
+    container_name: sms-auth-backend
+    volumes:
+      - ./backend:/var/www/html/
+    networks:
+      - appsmsauth
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sms-auth-frontend
+    tty: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/var/www/frontend/
+
+    networks:
+      - appsmsauth
+
+  db:
+    image: mysql:5.7.22
+    container_name: sms-auth-db
+    tty: true
+    environment:
+      MYSQL_DATABASE: 'smsauth'
+      MYSQL_USER: 'root'
+      MYSQL_PASSWORD: 'password'
+      MYSQL_ROOT_PASSWORD: 'password'
+    
+    volumes:
+      - ./docker-compose/mysql:/docker-entrypoint-initdb.d
+    networks:
+      - appsmsauth
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: sms-auth-pma
+    links:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: always
+    ports:
+      - 8081:80
+    networks:
+      - appsmsauth
+
+networks:
+  appsmsauth:
+    driver: bridge
